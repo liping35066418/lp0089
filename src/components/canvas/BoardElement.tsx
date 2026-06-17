@@ -61,7 +61,7 @@ export const BoardElementComponent: React.FC<BoardElementProps> = ({
     zIndex: isSelected ? 10 : 1,
     cursor: isDragging ? 'grabbing' : 'grab',
     backgroundColor: element.style.backgroundColor || 'transparent',
-    padding: element.style.padding * zoom,
+    padding: `${mmToPx(element.style.padding) * zoom}px`,
     boxSizing: 'border-box',
     border:
       element.style.borderStyle !== 'none'
@@ -165,8 +165,9 @@ export const BoardElementComponent: React.FC<BoardElementProps> = ({
   };
 
   const renderContent = () => {
-    const innerWidth = mmToPx(element.width) * zoom - element.style.padding * zoom * 2;
-    const innerHeight = mmToPx(element.height) * zoom - element.style.padding * zoom * 2;
+    const paddingPx = mmToPx(element.style.padding) * zoom;
+    const innerWidth = mmToPx(element.width) * zoom - paddingPx * 2;
+    const innerHeight = mmToPx(element.height) * zoom - paddingPx * 2;
 
     if (element.type === 'chart') {
       return (

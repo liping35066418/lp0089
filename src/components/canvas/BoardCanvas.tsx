@@ -39,9 +39,13 @@ export const BoardCanvas: React.FC = () => {
     deleteElement,
     addElement,
     syncToRenderServer,
+    setViewportSize,
+    needCenter,
+    clearNeedCenter,
   } = useBoardStore();
 
   const canvasRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [activeElementType, setActiveElementType] = useState<ElementType | null>(null);
   const [showGrid, setShowGrid] = useState(true);
@@ -55,6 +59,45 @@ export const BoardCanvas: React.FC = () => {
     }, 100);
     return () => clearTimeout(timer);
   }, [theme, syncToRenderServer]);
+
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const updateSize = () => {
+      const rect = container.getBoundingClientRect();
+      setViewportSize(rect.width, rect.height);
+    };
+
+    updateSize();
+    const observer = new ResizeObserver(updateSize);
+    observer.observe(container);
+    window.addEventListener('resize', updateSize);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', updateSize);
+    };
+  }, [setViewportSize]);
+
+  useEffect(() => {
+    if (!needCenter) return;
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const boardTotalW = boardWidthPx + 28 + 28;
+    const boardTotalH = boardHeightPx + 28 + 28;
+    const cw = container.clientWidth;
+    const ch = container.clientHeight;
+
+    const targetScrollLeft = Math.max(0, (boardTotalW - cw) / 2);
+    const targetScrollTop = Math.max(0, (boardTotalH - ch) / 2);
+
+    requestAnimationFrame(() => {
+      container.scrollTo({ left: targetScrollLeft, top: targetScrollTop, behavior: 'smooth' });
+      clearNeedCenter();
+    });
+  }, [needCenter, boardWidthPx, boardHeightPx, clearNeedCenter]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -155,7 +198,7 @@ export const BoardCanvas: React.FC = () => {
       onDragEnd={handleDragEnd}
       modifiers={[restrictToParentElement]}
     >
-      <div className="flex-1 overflow-auto bg-[#1a1a1a] p-4 relative">
+      <div ref={scrollContainerRef} className="flex-1 overflow-auto bg-[#1a1a1a] p-4 relative">
         <div className="flex flex-col items-start">
           <div className="flex items-start">
             <div className="flex flex-col">

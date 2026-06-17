@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { RotateCcw, ZoomIn, ZoomOut, Maximize2, ExternalLink, RefreshCw } from 'lucide-react';
 import { useBoardStore } from '../../store/useBoardStore';
 import { ThemeSelector } from '../theme/ThemeSelector';
@@ -10,9 +10,12 @@ interface ToolbarProps {
 }
 
 export const Toolbar: React.FC<ToolbarProps> = ({ theme, onThemeChange }) => {
-  const { zoom, setZoom, resetLayout, title, setTitle, syncToRenderServer } = useBoardStore();
+  const { zoom, setZoom, resetLayout, title, setTitle, syncToRenderServer, fitToScreen } = useBoardStore();
   const [renderUrl, setRenderUrl] = useState('http://localhost:8839/render');
   const [isSyncing, setIsSyncing] = useState(false);
+  const [zoomInput, setZoomInput] = useState<string>('');
+  const [isZoomEditing, setIsZoomEditing] = useState(false);
+  const zoomInputRef = useRef<HTMLInputElement>(null);
 
   const handleZoomIn = () => {
     setZoom(Math.min(1.5, zoom + 0.1));
@@ -23,7 +26,39 @@ export const Toolbar: React.FC<ToolbarProps> = ({ theme, onThemeChange }) => {
   };
 
   const handleFitScreen = () => {
-    setZoom(0.55);
+    fitToScreen();
+  };
+
+  const handleZoomStartEdit = () => {
+    setZoomInput(String(Math.round(zoom * 100)));
+    setIsZoomEditing(true);
+    setTimeout(() => {
+      zoomInputRef.current?.focus();
+      zoomInputRef.current?.select();
+    }, 0);
+  };
+
+  const applyZoomInput = () => {
+    const raw = zoomInput.trim();
+    if (raw === '') {
+      setIsZoomEditing(false);
+      return;
+    }
+    const num = Number(raw);
+    if (!isNaN(num)) {
+      const clamped = Math.min(150, Math.max(20, num));
+      setZoom(clamped / 100);
+    }
+    setIsZoomEditing(false);
+  };
+
+  const handleZoomKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      applyZoomInput();
+    } else if (e.key === 'Escape') {
+      setIsZoomEditing(false);
+    }
   };
 
   const handleSync = async () => {
@@ -153,9 +188,48 @@ export const Toolbar: React.FC<ToolbarProps> = ({ theme, onThemeChange }) => {
             color: '#fff',
             fontFamily: "'JetBrains Mono', monospace",
             padding: '0 4px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
           }}
         >
-          {(zoom * 100).toFixed(0)}%
+          {isZoomEditing ? (
+            <input
+              ref={zoomInputRef}
+              type="text"
+              value={zoomInput}
+              onChange={(e) => setZoomInput(e.target.value.replace(/[^\d.-]/g, ''))}
+              onBlur={applyZoomInput}
+              onKeyDown={handleZoomKeyDown}
+              style={{
+                width: 36,
+                fontSize: 11,
+                fontFamily: "'JetBrains Mono', monospace",
+                background: '#3a3a3a',
+                border: `1px solid ${theme === 'physics' ? '#3B82F6' : '#22C55E'}`,
+                borderRadius: 2,
+                color: '#fff',
+                outline: 'none',
+                textAlign: 'center',
+                padding: '2px 3px',
+              }}
+            />
+          ) : (
+            <span
+              onClick={handleZoomStartEdit}
+              style={{
+                cursor: 'text',
+                padding: '2px 4px',
+                borderRadius: 2,
+                userSelect: 'none',
+                transition: 'background-color 0.15s',
+              }}
+              className="hover:bg-gray-700"
+              title="点击输入缩放比例"
+            >
+              {(zoom * 100).toFixed(0)}%
+            </span>
+          )}
         </div>
         <button
           onClick={handleZoomIn}

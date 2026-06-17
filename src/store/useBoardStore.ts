@@ -10,7 +10,7 @@ import type {
   ImageContent,
   BoardStyle,
 } from '../types';
-import { BOARD_WIDTH_MM, BOARD_HEIGHT_MM } from '../utils/unitConversion';
+import { BOARD_WIDTH_MM, BOARD_HEIGHT_MM, mmToPx } from '../utils/unitConversion';
 import { themes } from '../components/theme/themes';
 
 const getDefaultStyle = (theme: ThemeType): BoardStyle => {
@@ -189,7 +189,7 @@ const createSampleElements = (theme: ThemeType): BoardElement[] => {
   ];
 };
 
-const createInitialState = (): BoardState => {
+const createInitialState = (): BoardState & { viewportWidth: number; viewportHeight: number; needCenter: boolean } => {
   const theme: ThemeType = 'physics';
   return {
     id: uuidv4(),
@@ -201,10 +201,16 @@ const createInitialState = (): BoardState => {
     selectedElementId: null,
     zoom: 0.55,
     style: getDefaultStyle(theme),
+    viewportWidth: 0,
+    viewportHeight: 0,
+    needCenter: false,
   };
 };
 
 interface BoardStore extends BoardState {
+  viewportWidth: number;
+  viewportHeight: number;
+  needCenter: boolean;
   setTheme: (theme: ThemeType) => void;
   setTitle: (title: string) => void;
   setZoom: (zoom: number) => void;
@@ -217,6 +223,9 @@ interface BoardStore extends BoardState {
   updateBoardStyle: (style: Partial<BoardStyle>) => void;
   resetLayout: () => void;
   syncToRenderServer: () => Promise<void>;
+  setViewportSize: (width: number, height: number) => void;
+  fitToScreen: () => void;
+  clearNeedCenter: () => void;
 }
 
 export const useBoardStore = create<BoardStore>((set, get) => ({
@@ -355,6 +364,31 @@ export const useBoardStore = create<BoardStore>((set, get) => ({
   resetLayout: () => {
     set(createInitialState());
     get().syncToRenderServer();
+  },
+
+  setViewportSize: (width, height) => {
+    set({ viewportWidth: width, viewportHeight: height });
+  },
+
+  fitToScreen: () => {
+    const { viewportWidth, viewportHeight } = get();
+    if (viewportWidth <= 0 || viewportHeight <= 0) {
+      set({ zoom: 0.55, needCenter: true });
+      return;
+    }
+    const boardPxW = mmToPx(BOARD_WIDTH_MM);
+    const boardPxH = mmToPx(BOARD_HEIGHT_MM);
+    const rulerAndPadding = 56;
+    const availableW = viewportWidth - rulerAndPadding;
+    const availableH = viewportHeight - rulerAndPadding;
+    const scaleW = availableW / boardPxW;
+    const scaleH = availableH / boardPxH;
+    const newZoom = Math.min(1.5, Math.max(0.2, Math.min(scaleW, scaleH) * 0.98));
+    set({ zoom: newZoom, needCenter: true });
+  },
+
+  clearNeedCenter: () => {
+    set({ needCenter: false });
   },
 
   syncToRenderServer: async () => {
