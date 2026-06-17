@@ -165,8 +165,8 @@ export const BoardElementComponent: React.FC<BoardElementProps> = ({
   };
 
   const renderContent = () => {
-    const innerWidth = mmToPx(element.width) - element.style.padding * 2;
-    const innerHeight = mmToPx(element.height) - element.style.padding * 2;
+    const innerWidth = mmToPx(element.width) * zoom - element.style.padding * zoom * 2;
+    const innerHeight = mmToPx(element.height) * zoom - element.style.padding * zoom * 2;
 
     if (element.type === 'chart') {
       return (
